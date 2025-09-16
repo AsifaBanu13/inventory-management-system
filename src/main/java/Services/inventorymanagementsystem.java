@@ -1,113 +1,133 @@
 package Services;
 
-import models.Product;
-import java.util.*;
+import Models.Product;
+import util.DBConnection;
+
+import java.sql.*;
 
 public class inventorymanagementsystem {
-    private Map<Integer, Product> productList = new HashMap<>();
+    private Connection conn;
 
-    // Input helper to add product with validations
-    public Product inputHelper(Scanner scanner) {
-        try {
-            System.out.print("Enter Product ID: ");
-            int id = scanner.nextInt();
-            scanner.nextLine(); // consume newline
-
-            if (productList.containsKey(id)) {
-                throw new IllegalArgumentException("⚠ Product with this ID already exists.");
-            }
-
-            System.out.print("Enter Product Name: ");
-            String name = scanner.nextLine();
-
-            System.out.print("Enter Product Type: ");
-            String type = scanner.nextLine();
-
-            System.out.print("Enter Quantity: ");
-            int qty = scanner.nextInt();
-            if (qty < 0) throw new IllegalArgumentException("⚠ Quantity cannot be negative.");
-
-            System.out.print("Enter Price: ");
-            double price = scanner.nextDouble();
-            if (price < 0) throw new IllegalArgumentException("⚠ Price cannot be negative.");
-
-            return new Product(id, name, type, qty, price);
-
-        } catch (InputMismatchException e) {
-            System.out.println("⚠ Invalid input! Please enter correct data type.");
-            scanner.nextLine(); // clear buffer
-        } catch (IllegalArgumentException e) {
-            System.out.println("⚠ " + e.getMessage());
-        }
-        return null;
+    public inventorymanagementsystem() {
+        conn = DBConnection.getConnection();
     }
 
     // Add Product
-    public void addProduct(Scanner scanner) {
-        Product newProduct = inputHelper(scanner);
-        if (newProduct != null) {
-            productList.put(newProduct.getProductId(), newProduct);
-            System.out.println("✅ Product added successfully!");
-        } else {
-            System.out.println("⚠ Product could not be added.");
-        }
-    }
+    public void addProduct(Product product) {
+        try {
+            System.out.println("Attempting to add product: " + product.getName());
+            String checkSQL = "SELECT COUNT(*) FROM products WHERE name = ?";
+            PreparedStatement psCheck = conn.prepareStatement(checkSQL);
+            psCheck.setString(1, product.getName());
+            ResultSet rs = psCheck.executeQuery();
+            rs.next();
 
-    // View All Products
-    public void viewAllProducts() {
-        if (productList.isEmpty()) {
-            System.out.println("⚠ Product List is empty!");
-        } else {
-            for (Product product : productList.values()) {
-                System.out.println(product);
+            if (rs.getInt(1) == 0) {
+                String sql = "INSERT INTO products (name, category, quantity, price) VALUES (?, ?, ?, ?)";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setString(1, product.getName());
+                ps.setString(2, product.getCategory());
+                ps.setInt(3, product.getQuantity());
+                ps.setDouble(4, product.getPrice());
+                int rows = ps.executeUpdate();
+                System.out.println("Rows affected: " + rows);
+                ps.close();
+            } else {
+                System.out.println("Product already exists!");
             }
+
+            rs.close();
+            psCheck.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 
-    // Search Product by Name
-    public void searchProductByName(String name) {
-        boolean found = false;
-        for (Product product : productList.values()) {
-            if (product.getProductName().equalsIgnoreCase(name)) {
-                System.out.println(product);
+    // View all products
+    public void viewProducts() {
+        try {
+            String sql = "SELECT * FROM products";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            System.out.println("\nID\tName\tCategory\tQuantity\tPrice");
+            System.out.println("--------------------------------------------------------");
+            while (rs.next()) {
+                System.out.printf("%d\t%s\t%s\t%d\t%.2f\n",
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getString("category"),
+                        rs.getInt("quantity"),
+                        rs.getDouble("price"));
+            }
+
+            rs.close();
+            stmt.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Update product
+    public void updateProduct(String name, int quantity, double price) {
+        try {
+            String sql = "UPDATE products SET quantity = ?, price = ? WHERE name = ?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, quantity);
+            ps.setDouble(2, price);
+            ps.setString(3, name);
+
+            int rows = ps.executeUpdate();
+            if (rows > 0) System.out.println("Product updated successfully!");
+            else System.out.println("Product not found!");
+            ps.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Delete product
+    public void deleteProduct(String name) {
+        try {
+            String sql = "DELETE FROM products WHERE name = ?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, name);
+
+            int rows = ps.executeUpdate();
+            if (rows > 0) System.out.println("Product deleted successfully!");
+            else System.out.println("Product not found!");
+            ps.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Search product
+    public void searchProduct(String name) {
+        try {
+            String sql = "SELECT * FROM products WHERE name LIKE ?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, "%" + name + "%");
+            ResultSet rs = ps.executeQuery();
+
+            boolean found = false;
+            System.out.println("\nID\tName\tCategory\tQuantity\tPrice");
+            System.out.println("--------------------------------------------------------");
+            while (rs.next()) {
                 found = true;
+                System.out.printf("%d\t%s\t%s\t%d\t%.2f\n",
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getString("category"),
+                        rs.getInt("quantity"),
+                        rs.getDouble("price"));
             }
-        }
-        if (!found) {
-            System.out.println("⚠ No product found with name: " + name);
-        }
-    }
+            if (!found) System.out.println("No products found matching: " + name);
 
-    // 🔹 Search Product by ID
-    public void searchProductById(int id) {
-        Product product = productList.get(id);
-        if (product != null) {
-            System.out.println(product);
-        } else {
-            System.out.println("⚠ No product found with ID: " + id);
-        }
-    }
-
-    // Remove Product
-    public void removeProduct(int id) {
-        if (productList.containsKey(id)) {
-            productList.remove(id);
-            System.out.println("✅ Product removed successfully!");
-        } else {
-            System.out.println("⚠ Product with ID " + id + " not found.");
-        }
-    }
-
-    // Update Product Quantity
-    public void updateProductQuantity(int id, int newQty) {
-        Product product = productList.get(id);
-        if (product == null) {
-            System.out.println("⚠ Cannot update. Product with ID " + id + " not found.");
-        } else if (newQty < 0) {
-            System.out.println("⚠ Quantity cannot be negative.");
-        } else {
-            product.setAvailableQty(newQty);
-            System.out.println("✅ Product updated successfully: " + product);
+            rs.close();
+            ps.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 }
