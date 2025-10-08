@@ -1,133 +1,138 @@
 package Services;
 
 import Models.Product;
-import util.DBConnection;
+import dao.ProductDAO;
+import dao.ProductDAOImpl;
+import exception.ValidationException;
+import exception.ProductNotFoundException;
 
-import java.sql.*;
+import java.sql.SQLException;
+import java.util.List;
 
 public class inventorymanagementsystem {
-    private Connection conn;
+    private final ProductDAO dao;
 
     public inventorymanagementsystem() {
-        conn = DBConnection.getConnection();
+        this.dao = new ProductDAOImpl();
     }
 
-    // Add Product
+    // Add a product
     public void addProduct(Product product) {
         try {
-            System.out.println("Attempting to add product: " + product.getName());
-            String checkSQL = "SELECT COUNT(*) FROM products WHERE name = ?";
-            PreparedStatement psCheck = conn.prepareStatement(checkSQL);
-            psCheck.setString(1, product.getName());
-            ResultSet rs = psCheck.executeQuery();
-            rs.next();
-
-            if (rs.getInt(1) == 0) {
-                String sql = "INSERT INTO products (name, category, quantity, price) VALUES (?, ?, ?, ?)";
-                PreparedStatement ps = conn.prepareStatement(sql);
-                ps.setString(1, product.getName());
-                ps.setString(2, product.getCategory());
-                ps.setInt(3, product.getQuantity());
-                ps.setDouble(4, product.getPrice());
-                int rows = ps.executeUpdate();
-                System.out.println("Rows affected: " + rows);
-                ps.close();
-            } else {
-                System.out.println("Product already exists!");
-            }
-
-            rs.close();
-            psCheck.close();
+            dao.addProduct(product);
+            System.out.println("✅ Product added successfully: " + product.getName());
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("❌ Error adding product: " + e.getMessage());
+        } catch (RuntimeException e) {
+            System.err.println("⚠️ Operation failed: " + e.getMessage());
         }
     }
 
-    // View all products
+    // View all products (Tabular format)
     public void viewProducts() {
         try {
-            String sql = "SELECT * FROM products";
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(sql);
-
-            System.out.println("\nID\tName\tCategory\tQuantity\tPrice");
-            System.out.println("--------------------------------------------------------");
-            while (rs.next()) {
-                System.out.printf("%d\t%s\t%s\t%d\t%.2f\n",
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getString("category"),
-                        rs.getInt("quantity"),
-                        rs.getDouble("price"));
+            List<Product> products = dao.getAllProducts();
+            if (products.isEmpty()) {
+                System.out.println("📭 No products available.");
+                return;
             }
 
-            rs.close();
-            stmt.close();
+            System.out.println("\n📦 Product List:");
+            System.out.printf("%-5s %-20s %-15s %-10s %-10s%n",
+                    "ID", "Name", "Category", "Quantity", "Price");
+            System.out.println("---------------------------------------------------------------");
+
+            for (Product p : products) {
+                System.out.printf("%-5d %-20s %-15s %-10d %-10.2f%n",
+                        p.getId(), p.getName(), p.getCategory(), p.getQuantity(), p.getPrice());
+            }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("❌ Error fetching products: " + e.getMessage());
+        } catch (RuntimeException e) {
+            System.err.println("⚠️ Unexpected error while fetching products: " + e.getMessage());
         }
     }
 
     // Update product
-    public void updateProduct(String name, int quantity, double price) {
+    public void updateProduct(int id, String newName, String newCategory, int quantity, double price) {
         try {
-            String sql = "UPDATE products SET quantity = ?, price = ? WHERE name = ?";
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setInt(1, quantity);
-            ps.setDouble(2, price);
-            ps.setString(3, name);
-
-            int rows = ps.executeUpdate();
-            if (rows > 0) System.out.println("Product updated successfully!");
-            else System.out.println("Product not found!");
-            ps.close();
+            Product p = new Product(id, newName, newCategory, quantity, price);
+            dao.updateProduct(p);
+            System.out.println("✅ Product updated successfully!");
+        } catch (ValidationException e) {
+            System.err.println("⚠️ Invalid product data: " + e.getMessage());
+        } catch (ProductNotFoundException e) {
+            System.err.println("❌ Update failed: " + e.getMessage());
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("❌ Update failed (DB): " + e.getMessage());
+        } catch (RuntimeException e) {
+            System.err.println("⚠️ Unexpected error during update: " + e.getMessage());
         }
     }
 
     // Delete product
-    public void deleteProduct(String name) {
+    public void deleteProduct(int id) {
         try {
-            String sql = "DELETE FROM products WHERE name = ?";
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setString(1, name);
-
-            int rows = ps.executeUpdate();
-            if (rows > 0) System.out.println("Product deleted successfully!");
-            else System.out.println("Product not found!");
-            ps.close();
+            dao.deleteProduct(id);
+            System.out.println("🗑️ Product deleted successfully!");
+        } catch (ProductNotFoundException e) {
+            System.err.println("❌ Delete failed: " + e.getMessage());
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("❌ Delete failed (DB): " + e.getMessage());
+        } catch (RuntimeException e) {
+            System.err.println("⚠️ Unexpected error during delete: " + e.getMessage());
         }
     }
 
-    // Search product
+    // Search product by name (Tabular format)
     public void searchProduct(String name) {
         try {
-            String sql = "SELECT * FROM products WHERE name LIKE ?";
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setString(1, "%" + name + "%");
-            ResultSet rs = ps.executeQuery();
-
-            boolean found = false;
-            System.out.println("\nID\tName\tCategory\tQuantity\tPrice");
-            System.out.println("--------------------------------------------------------");
-            while (rs.next()) {
-                found = true;
-                System.out.printf("%d\t%s\t%s\t%d\t%.2f\n",
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getString("category"),
-                        rs.getInt("quantity"),
-                        rs.getDouble("price"));
+            List<Product> list = dao.searchProductsByName(name);
+            if (list.isEmpty()) {
+                System.out.println("🔍 No products found matching: " + name);
+                return;
             }
-            if (!found) System.out.println("No products found matching: " + name);
 
-            rs.close();
-            ps.close();
+            System.out.println("\n🔍 Search Results:");
+            System.out.printf("%-5s %-20s %-15s %-10s %-10s%n",
+                    "ID", "Name", "Category", "Quantity", "Price");
+            System.out.println("---------------------------------------------------------------");
+
+            for (Product p : list) {
+                System.out.printf("%-5d %-20s %-15s %-10d %-10.2f%n",
+                        p.getId(), p.getName(), p.getCategory(), p.getQuantity(), p.getPrice());
+            }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("❌ Search failed: " + e.getMessage());
+        } catch (RuntimeException e) {
+            System.err.println("⚠️ Unexpected error during search: " + e.getMessage());
+        }
+    }
+
+    // Return list for report generation
+    public List<Product> getAllProductsForReport() {
+        try {
+            return dao.getAllProducts();
+        } catch (SQLException e) {
+            System.err.println("❌ Could not load products for report: " + e.getMessage());
+            return java.util.Collections.emptyList();
+        } catch (RuntimeException e) {
+            System.err.println("⚠️ Unexpected error while loading report data: " + e.getMessage());
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    // Get by id
+    public void viewProductById(int id) {
+        try {
+            Product p = dao.getProductById(id);
+            System.out.println("📌 Product Details: " + p);
+        } catch (ProductNotFoundException e) {
+            System.err.println("❌ " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("❌ Error fetching product: " + e.getMessage());
+        } catch (RuntimeException e) {
+            System.err.println("⚠️ Unexpected error: " + e.getMessage());
         }
     }
 }
