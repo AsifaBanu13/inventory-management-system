@@ -1,5 +1,6 @@
 package dao;
-
+import dao.ProductDAOImpl;
+import dao.*;
 import Models.Product;
 import exception.ProductNotFoundException;
 import exception.ValidationException;
@@ -12,7 +13,7 @@ import java.util.List;
 public class ProductDAOImpl implements ProductDAO {
     private final Connection conn;
 
-    public ProductDAOImpl() {
+    public ProductDAOImpl() throws SQLException {
         this.conn = DBConnection.getConnection();
     }
 
@@ -171,10 +172,40 @@ public class ProductDAOImpl implements ProductDAO {
                     products.add(p);
                 }
             } catch (ValidationException e) {
-                throw new RuntimeException(e);
+                System.err.println("⚠️ Skipping invalid product from DB: " + e.getMessage());
             }
         }
         return products;
     }
 
+    @Override
+    public List<Product> filterProductsByPriceRange(double min, double max) throws SQLException {
+        List<Product> products = new ArrayList<>();
+        String sql = "SELECT * FROM products WHERE price BETWEEN ? AND ?";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setDouble(1, min);
+            stmt.setDouble(2, max);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    try {
+                        Product p = new Product(
+                                rs.getInt("id"),
+                                rs.getString("name"),
+                                rs.getString("category"),
+                                rs.getInt("quantity"),
+                                rs.getDouble("price")
+                        );
+                        products.add(p);
+                    } catch (ValidationException e) {
+                        System.err.println("⚠️ Skipping invalid product from DB: " + e.getMessage());
+                    }
+                }
+            }
+            return products;
+        }
+
+
+    }
 }

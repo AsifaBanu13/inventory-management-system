@@ -1,6 +1,6 @@
 package dao;
 import Models.Product;
-import dao.ProductDAO;
+import dao.ProductDAOImpl;
 import exception.ValidationException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

@@ -50,6 +50,16 @@ public class User {
         this.role = role;
     }
 
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", username=" + username + '\'' +
+                ", password=" + password + '\'' +
+                ", role=" + role + '\''+
+    "}";
+    }
     // ✅ Function 1: Add User to Database
     public boolean addUser(Connection conn) {
         String sql = "INSERT INTO users (username, password, role) VALUES (?, ?, ?)";

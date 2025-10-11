@@ -6,11 +6,12 @@ import dao.ProductDAOImpl;
 
 import java.io.FileWriter;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 
-public class ReportGenerator {
+public class ReportGenerator  {
 
-    public static void generatePaginatedReportAuto(Connection conn) {
+    public static void generatePaginatedReportAuto(Connection conn) throws SQLException {
         ProductDAO dao = new ProductDAOImpl();
         int pageSize = 50; // 🔹 You can change this number as needed
 
