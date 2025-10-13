@@ -1,4 +1,4 @@
-package service;
+package Services;
 
 import Models.Product;
 import Models.User;

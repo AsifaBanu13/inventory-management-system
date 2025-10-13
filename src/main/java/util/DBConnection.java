@@ -8,35 +8,40 @@ import java.sql.SQLException;
 public class DBConnection {
 
     // change to your password
-
     private static final String DB_URL = System.getenv("DB_URL");
     private static final String DB_USER = System.getenv("DB_USER");
     private static final String DB_PASS = System.getenv("DB_PASS");
-
+//jdbc:mysql://localhost:3306/inventoryDB
 
     private static Connection connection;
     private DBConnection() {}
+
+    //test mode for mocking
+    private static boolean testMode=false;
+    public static void enableTestMode() {
+        testMode=true;
+    }
 
     public static Connection getConnection()  {
         if(DB_URL==null || DB_USER==null || DB_PASS==null){
             throw new RuntimeException("Database environment variables not set!");
         }
         try {
-            return DriverManager.getConnection(DB_URL,DB_USER,DB_PASS);
+            return DriverManager.getConnection(DB_URL ,DB_USER, DB_PASS);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
 
-     //   if (connection == null) {
-       //     try {
-                // Ensure the MySQL JDBC driver is available (for older drivers)
-                // Class.forName("com.mysql.cj.jdbc.Driver");
-         //       connection = DriverManager.getConnection(URL, USER, PASSWORD);
-           // } catch (SQLException e) {
-            //    e.printStackTrace();
-             //   throw new RuntimeException("Unable to establish database connection", e);
-           // }
-       // }
+        //   if (connection == null) {
+        //     try {
+        // Ensure the MySQL JDBC driver is available (for older drivers)
+        // Class.forName("com.mysql.cj.jdbc.Driver");
+        //       connection = DriverManager.getConnection(URL, USER, PASSWORD);
+        // } catch (SQLException e) {
+        //    e.printStackTrace();
+        //   throw new RuntimeException("Unable to establish database connection", e);
+        // }
+        // }
         //return connection;
     }
 }
