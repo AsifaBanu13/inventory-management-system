@@ -5,6 +5,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 
+
+
 public interface ProductDAO {
     void addProduct(Product product) throws SQLException;
     List<Product> getAllProducts() throws SQLException;

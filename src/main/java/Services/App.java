@@ -9,7 +9,10 @@ import dao.UserDAOImpl;
 import Services.inventorymanagementsystem;
 import Services.UserService;
 import exception.ValidationException;
+import util.EmailUtil;
 
+import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
@@ -94,7 +97,7 @@ public class App {
     }
 
     // ========================= ADMIN MENU =========================
-    private static void adminMenu() {
+    private static void adminMenu() throws SQLException {
         while (true) {
             System.out.println("\n===== 🧑‍💼 ADMIN INVENTORY MENU =====");
             System.out.println("1️⃣ Add Product");
@@ -115,7 +118,34 @@ public class App {
                 case "4" -> updateProduct();
                 case "5" -> deleteProduct();
                 case "6" -> filterByPriceRange();
-                case "7" -> exportReport();
+                case "7" -> {
+                    // Create DAO instance
+                    ProductDAOImpl productDAO = new ProductDAOImpl();
+                    // Get all products using the instance
+                    var products = productDAO.getAllProducts();
+                    // Generate CSV report
+                    String filePath = CSVHelper.saveProductsReport(products, "Admin");
+                    // Send the report via email
+                    EmailUtil.sendReport(
+                            "admin@company.com",
+                            "Daily Inventory Report",
+                            "Attached is your latest Inventory Report.",
+                            filePath
+                    );
+
+                    System.out.println("Report generated and emailed successfully!");
+                    // ✅ Automatically open the file in Excel (or default CSV viewer)
+                    try {
+                        File file = new File(filePath);
+                        if (file.exists()) {
+                            Desktop.getDesktop().open(file);
+                        } else {
+                            System.out.println("⚠ Report file not found to open.");
+                        }
+                    } catch (Exception e) {
+                        System.err.println("⚠ Unable to open report: " + e.getMessage());
+                    }
+                }
                 case "8" -> {
                     System.out.println("👋 Logging out...");
                     return;
