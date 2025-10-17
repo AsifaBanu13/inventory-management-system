@@ -2,19 +2,10 @@ package Services;
 
 import Models.Product;
 import Models.User;
-import util.CSVHelper;
-import util.DBConnection;
 import dao.ProductDAOImpl;
-import dao.UserDAOImpl;
-import Services.inventorymanagementsystem;
-import Services.UserService;
 import exception.ValidationException;
-import util.EmailUtil;
+import util.CSVHelper;
 
-import java.awt.*;
-import java.io.File;
-import java.io.IOException;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Scanner;
 
@@ -24,93 +15,148 @@ public class App {
     private static final UserService userService = new UserService();
     private static final inventorymanagementsystem inventoryManager = new inventorymanagementsystem();
 
-    public static void main(String[] args) throws SQLException {
-        System.out.println("==============================================");
-        System.out.println("🛍️   Welcome to our E-Commerce App   🛍️");
-        System.out.println("==============================================");
+    // ANSI colors
+    private static final String RESET = "\u001B[0m";
+    private static final String CYAN = "\u001B[36m";
+    private static final String GREEN = "\u001B[32m";
+    private static final String RED = "\u001B[31m";
+    private static final String YELLOW = "\u001B[33m";
+    private static final String MAGENTA = "\u001B[35m";
 
+    public static void main(String[] args) {
         while (true) {
-            System.out.println("\n1️⃣ Login");
-            System.out.println("2️⃣ Register");
-            System.out.println("3️⃣ Exit");
-            System.out.print("👉 Enter your choice: ");
+            printMainMenu();
+            System.out.print(CYAN + "👉 Enter your choice: " + RESET);
             String choice = scanner.nextLine().trim();
 
             switch (choice) {
                 case "1" -> loginUser();
                 case "2" -> registerUser();
-                case "3" -> {
-                    System.out.println("👋 Thank you for visiting! Goodbye!");
+                case "3" -> verifyEmail();
+                case "4" -> {
+                    System.out.println(GREEN + "👋 Thank you for using Inventory System. Goodbye!" + RESET);
                     return;
                 }
-                default -> System.out.println("⚠️ Invalid choice! Please try again.");
+                default -> System.out.println(RED + "⚠️ Invalid choice. Please select 1-4." + RESET);
             }
         }
     }
 
-    private static void loginUser() throws SQLException {
-        System.out.print("👤 Enter Username: ");
-        String username = scanner.nextLine().trim();
+    // ========================= MAIN MENU =========================
+    private static void printMainMenu() {
+        System.out.println(MAGENTA + "╔════════════════════════════════════════════════════╗" + RESET);
+        System.out.println(MAGENTA + "║" + RESET + "  " + GREEN + "🌟  INVENTORY MANAGEMENT SYSTEM  🌟" + RESET
+                + "  " + MAGENTA + "║" + RESET);
+        System.out.println(MAGENTA + "╠════════════════════════════════════════════════════╣" + RESET);
+        System.out.println(YELLOW + " 1. Login" + RESET);
+        System.out.println(YELLOW + " 2. Register" + RESET);
+        System.out.println(YELLOW + " 3. Verify Email" + RESET);
+        System.out.println(YELLOW + " 4. Exit" + RESET);
+        System.out.println(MAGENTA + "╚════════════════════════════════════════════════════╝" + RESET);
+    }
 
-        System.out.print("🔑 Enter Password: ");
-        String password = scanner.nextLine().trim();
+    // ========================= LOGIN =========================
+    private static void loginUser() {
+        try {
+            System.out.println(CYAN + "\n🔐 LOGIN" + RESET);
+            System.out.print("Username: ");
+            String username = scanner.nextLine().trim();
+            System.out.print("Password: ");
+            String password = scanner.nextLine().trim();
 
-        User loggedInUser = userService.login(username, password);
+            User user = userService.login(username, password);
+            if (user != null) {
+                System.out.println(GREEN + "✅ Login successful! Welcome, " + user.getUsername() + " (" + user.getRole() + ")" + RESET);
 
-        if (loggedInUser == null) {
-            System.out.println("❌ Invalid username or password. Please try again!");
-            return;
-        }
-
-        System.out.println("\n✅ Login successful! Welcome, " + loggedInUser.getUsername());
-        System.out.println("🎭 Role: " + loggedInUser.getRole());
-
-        if (loggedInUser.getRole().equalsIgnoreCase("ADMIN")) {
-            adminMenu();
-        } else {
-            userMenu();
+                if (user.getRole().equalsIgnoreCase("ADMIN")) {
+                    adminMenu();
+                } else {
+                    userMenu();
+                }
+            } else {
+                System.out.println(RED + "❌ Invalid username or password!" + RESET);
+            }
+        } catch (Exception e) {
+            System.out.println(RED + "❌ Login failed: " + e.getMessage() + RESET);
         }
     }
 
-    private static void registerUser() throws SQLException {
-        System.out.println("\n===== 📝 Register New User =====");
-        System.out.print("👤 Enter Username: ");
-        String username = scanner.nextLine().trim();
-
-        System.out.print("🔑 Enter Password: ");
-        String password = scanner.nextLine().trim();
-
-        System.out.print("🎭 Enter Role (ADMIN/USER): ");
-        String role = scanner.nextLine().trim().toUpperCase();
-
-        User newUser = new User(0, username, password, role);
-
+    // ========================= REGISTER =========================
+    private static void registerUser() {
         try {
-            userService.register(newUser);
-            System.out.println("✅ Registration successful! You can now login.");
-        } catch (ValidationException e) {
-            System.out.println("⚠️ " + e.getMessage());
-        }
+            System.out.println(CYAN + "\n📝 REGISTER" + RESET);
+            System.out.print("Username: ");
+            String username = scanner.nextLine().trim();
+            System.out.print("Password: ");
+            String password = scanner.nextLine().trim();
+            System.out.print("Role (ADMIN/USER): ");
+            String role = scanner.nextLine().trim().toUpperCase();
+            System.out.print("Email: ");
+            String email = scanner.nextLine().trim();
 
-        // After registration, go to login
-        loginUser();
+            User newUser = new User(username, password, role, email);
+            userService.register(newUser);
+
+            System.out.println(GREEN + "✅ User registered successfully!" + RESET);
+            System.out.println(YELLOW + "📧 Please verify your email before login." + RESET);
+        } catch (ValidationException ve) {
+            System.out.println(RED + "⚠️ " + ve.getMessage() + RESET);
+        } catch (Exception e) {
+            System.out.println(RED + "❌ Registration failed: " + e.getMessage() + RESET);
+        }
+    }
+
+    // ========================= VERIFY EMAIL =========================
+    private static void verifyEmail() {
+        try {
+            System.out.println(CYAN + "\n📩 VERIFY EMAIL" + RESET);
+            System.out.print("Enter your registered email: ");
+            String email = scanner.nextLine().trim();
+
+            User user = userService.getUserByEmail(email);
+            if (user == null) {
+                System.out.println(RED + "❌ No account found with this email." + RESET);
+                return;
+            }
+            if (user.isVerified()) {
+                System.out.println(GREEN + "✅ Email already verified. You can login now." + RESET);
+                return;
+            }
+
+            // Send OTP
+            OTPService.sendOTP(email);
+            System.out.println(YELLOW + "📨 OTP sent to: " + email + RESET);
+
+            System.out.print("Enter OTP: ");
+            String enteredOTP = scanner.nextLine().trim();
+
+            if (OTPService.validateOTP(email, enteredOTP)) {
+                userService.setVerified(email);
+                System.out.println(GREEN + "✅ Email verified successfully! You can now login." + RESET);
+            } else {
+                System.out.println(RED + "❌ Invalid OTP. Please try again." + RESET);
+            }
+
+        } catch (Exception e) {
+            System.out.println(RED + "❌ Verification failed: " + e.getMessage() + RESET);
+        }
     }
 
     // ========================= ADMIN MENU =========================
-    private static void adminMenu() throws SQLException {
+    private static void adminMenu() {
         while (true) {
-            System.out.println("\n===== 🧑‍💼 ADMIN INVENTORY MENU =====");
-            System.out.println("1️⃣ Add Product");
-            System.out.println("2️⃣ View All Products");
-            System.out.println("3️⃣ Search Product by ID");
-            System.out.println("4️⃣ Update Product");
-            System.out.println("5️⃣ Delete Product");
-            System.out.println("6️⃣ Filter by Price Range");
-            System.out.println("7️⃣ Export Report (CSV)");
-            System.out.println("8️⃣ Logout");
-            System.out.print("👉 Enter your choice: ");
-
+            System.out.println(MAGENTA + "\n===== 🧑‍💼 ADMIN INVENTORY MENU =====" + RESET);
+            System.out.println(YELLOW + "1️⃣ Add Product" + RESET);
+            System.out.println(YELLOW + "2️⃣ View All Products" + RESET);
+            System.out.println(YELLOW + "3️⃣ Search Product by ID" + RESET);
+            System.out.println(YELLOW + "4️⃣ Update Product" + RESET);
+            System.out.println(YELLOW + "5️⃣ Delete Product" + RESET);
+            System.out.println(YELLOW + "6️⃣ Filter by Price Range" + RESET);
+            System.out.println(YELLOW + "7️⃣ Export Report (CSV)" + RESET);
+            System.out.println(YELLOW + "8️⃣ Logout" + RESET);
+            System.out.print(CYAN + "👉 Enter your choice: " + RESET);
             String choice = scanner.nextLine().trim();
+
             switch (choice) {
                 case "1" -> addProduct();
                 case "2" -> viewAllProducts();
@@ -118,39 +164,12 @@ public class App {
                 case "4" -> updateProduct();
                 case "5" -> deleteProduct();
                 case "6" -> filterByPriceRange();
-                case "7" -> {
-                    // Create DAO instance
-                    ProductDAOImpl productDAO = new ProductDAOImpl();
-                    // Get all products using the instance
-                    var products = productDAO.getAllProducts();
-                    // Generate CSV report
-                    String filePath = CSVHelper.saveProductsReport(products, "Admin");
-                    // Send the report via email
-                    EmailUtil.sendReport(
-                            "admin@company.com",
-                            "Daily Inventory Report",
-                            "Attached is your latest Inventory Report.",
-                            filePath
-                    );
-
-                    System.out.println("Report generated and emailed successfully!");
-                    // ✅ Automatically open the file in Excel (or default CSV viewer)
-                    try {
-                        File file = new File(filePath);
-                        if (file.exists()) {
-                            Desktop.getDesktop().open(file);
-                        } else {
-                            System.out.println("⚠ Report file not found to open.");
-                        }
-                    } catch (Exception e) {
-                        System.err.println("⚠ Unable to open report: " + e.getMessage());
-                    }
-                }
+                case "7" -> exportReport();
                 case "8" -> {
-                    System.out.println("👋 Logging out...");
+                    System.out.println(GREEN + "👋 Logging out..." + RESET);
                     return;
                 }
-                default -> System.out.println("⚠️ Invalid choice! Try again.");
+                default -> System.out.println(RED + "⚠️ Invalid choice! Try again." + RESET);
             }
         }
     }
@@ -158,23 +177,23 @@ public class App {
     // ========================= USER MENU =========================
     private static void userMenu() {
         while (true) {
-            System.out.println("\n===== 👤 USER MENU =====");
-            System.out.println("1️⃣ View All Products");
-            System.out.println("2️⃣ Search Product by ID");
-            System.out.println("3️⃣ Filter by Price Range");
-            System.out.println("4️⃣ Logout");
-            System.out.print("👉 Enter your choice: ");
-
+            System.out.println(MAGENTA + "\n===== 👤 USER MENU =====" + RESET);
+            System.out.println(YELLOW + "1️⃣ View All Products" + RESET);
+            System.out.println(YELLOW + "2️⃣ Search Product by ID" + RESET);
+            System.out.println(YELLOW + "3️⃣ Filter by Price Range" + RESET);
+            System.out.println(YELLOW + "4️⃣ Logout" + RESET);
+            System.out.print(CYAN + "👉 Enter your choice: " + RESET);
             String choice = scanner.nextLine().trim();
+
             switch (choice) {
                 case "1" -> viewAllProducts();
                 case "2" -> searchProductById();
                 case "3" -> filterByPriceRange();
                 case "4" -> {
-                    System.out.println("👋 Logging out...");
+                    System.out.println(GREEN + "👋 Logging out..." + RESET);
                     return;
                 }
-                default -> System.out.println("⚠️ Invalid choice! Try again.");
+                default -> System.out.println(RED + "⚠️ Invalid choice! Try again." + RESET);
             }
         }
     }
@@ -182,42 +201,37 @@ public class App {
     // ========================= PRODUCT METHODS =========================
     private static void addProduct() {
         try {
-            System.out.print("🆔 Enter Product ID: ");
+            System.out.print("🆔 Product ID: ");
             int id = Integer.parseInt(scanner.nextLine().trim());
-
-            System.out.print("📦 Enter Product Name: ");
+            System.out.print("📦 Name: ");
             String name = scanner.nextLine().trim();
-
-            System.out.print("🏷️ Enter Category: ");
+            System.out.print("🏷️ Category: ");
             String category = scanner.nextLine().trim();
-
-            System.out.print("🔢 Enter Quantity: ");
+            System.out.print("🔢 Quantity: ");
             int quantity = Integer.parseInt(scanner.nextLine().trim());
-
-            System.out.print("💰 Enter Price: ");
+            System.out.print("💰 Price: ");
             double price = Double.parseDouble(scanner.nextLine().trim());
 
             Product product = new Product(id, name, category, quantity, price);
             inventoryManager.addProduct(product);
-            System.out.println("✅ Product added successfully!");
+          //  System.out.println(GREEN + "✅ Product added successfully!" + RESET);
         } catch (Exception e) {
-            System.out.println("⚠️ Error adding product: " + e.getMessage());
+            System.out.println(RED + "⚠️ Error adding product: " + e.getMessage() + RESET);
         }
     }
 
     private static void viewAllProducts() {
         List<Product> products = inventoryManager.getAllProductsForReport();
         if (products.isEmpty()) {
-            System.out.println("⚠️ No products available!");
+            System.out.println(RED + "⚠️ No products available!" + RESET);
             return;
         }
-
-        System.out.printf("%-5s %-15s %-15s %-10s %-10s%n", "ID", "Name", "Category", "Quantity", "Price");
+        System.out.printf("%-5s %-15s %-15s %-10s %-10s%n", "ID", "Name", "Category", "Qty", "Price");
         System.out.println("-----------------------------------------------------------");
-        products.forEach(p ->
-                System.out.printf("%-5d %-15s %-15s %-10d %-10.2f%n",
-                        p.getId(), p.getName(), p.getCategory(), p.getQuantity(), p.getPrice())
-        );
+        for (Product p : products) {
+            System.out.printf("%-5d %-15s %-15s %-10d %-10.2f%n",
+                    p.getId(), p.getName(), p.getCategory(), p.getQuantity(), p.getPrice());
+        }
     }
 
     private static void searchProductById() {
@@ -226,7 +240,7 @@ public class App {
             int id = Integer.parseInt(scanner.nextLine().trim());
             inventoryManager.viewProductById(id);
         } catch (NumberFormatException e) {
-            System.out.println("⚠️ Invalid ID! Please enter a number.");
+            System.out.println(RED + "⚠️ Invalid ID! Please enter a number." + RESET);
         }
     }
 
@@ -234,23 +248,19 @@ public class App {
         try {
             System.out.print("🆔 Enter Product ID to Update: ");
             int id = Integer.parseInt(scanner.nextLine().trim());
-
-            System.out.print("📦 Enter New Name: ");
+            System.out.print("📦 New Name: ");
             String name = scanner.nextLine().trim();
-
-            System.out.print("🏷️ Enter New Category: ");
+            System.out.print("🏷️ New Category: ");
             String category = scanner.nextLine().trim();
-
-            System.out.print("🔢 Enter New Quantity: ");
+            System.out.print("🔢 New Quantity: ");
             int quantity = Integer.parseInt(scanner.nextLine().trim());
-
-            System.out.print("💰 Enter New Price: ");
+            System.out.print("💰 New Price: ");
             double price = Double.parseDouble(scanner.nextLine().trim());
 
             inventoryManager.updateProduct(id, name, category, quantity, price);
-            System.out.println("✅ Product updated successfully!");
+           // System.out.println(GREEN + "✅ Product updated successfully!" + RESET);
         } catch (Exception e) {
-            System.out.println("⚠️ Error updating product: " + e.getMessage());
+            System.out.println(RED + "⚠️ Error updating product: " + e.getMessage() + RESET);
         }
     }
 
@@ -259,31 +269,46 @@ public class App {
             System.out.print("🗑️ Enter Product ID to Delete: ");
             int id = Integer.parseInt(scanner.nextLine().trim());
             inventoryManager.deleteProduct(id);
-            System.out.println("✅ Product deleted successfully!");
+         //   System.out.println(GREEN + "✅ Product deleted successfully!" + RESET);
         } catch (Exception e) {
-            System.out.println("⚠️ Error deleting product: " + e.getMessage());
+            System.out.println(RED + "⚠️ Error deleting product: " + e.getMessage() + RESET);
         }
     }
 
     private static void filterByPriceRange() {
         try {
-            System.out.print("💸 Enter Minimum Price: ");
+            System.out.print("💸 Min Price: ");
             double min = Double.parseDouble(scanner.nextLine().trim());
-            System.out.print("💸 Enter Maximum Price: ");
+            System.out.print("💸 Max Price: ");
             double max = Double.parseDouble(scanner.nextLine().trim());
             inventoryManager.filterProductsByPriceRange(min, max);
         } catch (NumberFormatException e) {
-            System.out.println("⚠️ Please enter valid numbers for price range!");
+            System.out.println(RED + "⚠️ Enter valid numbers for price range!" + RESET);
         }
     }
 
     private static void exportReport() {
-        List<Product> products = inventoryManager.getAllProductsForReport();
         try {
-            CSVHelper.saveProducts(products);
-            System.out.println("📑 Report generated successfully: products.csv");
-        } catch (IOException e) {
-            System.out.println("⚠️ Failed to generate report: " + e.getMessage());
+            List<Product> products = inventoryManager.getAllProductsForReport();
+            if (products.isEmpty()) {
+                System.out.println(RED + "⚠️ No products available to generate report." + RESET);
+                return;
+            }
+            String filePath = CSVHelper.saveProductsReport(products, "Admin");
+
+            System.out.print("📧 Enter recipient email: ");
+            String toEmail = scanner.nextLine().trim();
+
+            EmailService.sendReport(
+                    toEmail,
+                    "📦 Inventory Report",
+                    "Hello,\n\nPlease find attached the inventory report.\n\nBest regards,\nInventory System",
+                    filePath
+            );
+
+            System.out.println(GREEN + "✅ Report generated and emailed successfully to " + toEmail + RESET);
+        } catch (Exception e) {
+            System.out.println(RED + "❌ Failed to generate or send report: " + e.getMessage() + RESET);
         }
     }
 }

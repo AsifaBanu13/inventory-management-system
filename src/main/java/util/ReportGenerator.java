@@ -1,22 +1,24 @@
 package util;
 
 import dao.ProductDAO;
-import Models.Product;
 import dao.ProductDAOImpl;
+import Models.Product;
 
 import java.io.FileWriter;
-import java.sql.Connection;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
-public class ReportGenerator  {
+public class ReportGenerator {
 
-    public static void generatePaginatedReportAuto(Connection conn) throws SQLException {
-        ProductDAO dao = new ProductDAOImpl();
-        int pageSize = 50; // 🔹 You can change this number as needed
+    public static void generatePaginatedReportAuto() {
+        ProductDAO dao;
+        dao = new ProductDAOImpl(); // DAO manages its own connection
+
+        int pageSize = 50; // You can change page size
 
         try {
-            int totalProducts = dao.getTotalProductCount(conn);
+            int totalProducts = dao.getTotalProductCount();
             int totalPages = (int) Math.ceil((double) totalProducts / pageSize);
 
             System.out.println("📊 Total Products: " + totalProducts);
@@ -24,7 +26,7 @@ public class ReportGenerator  {
             System.out.println("➡️ Total pages to generate: " + totalPages);
 
             for (int page = 1; page <= totalPages; page++) {
-                List<Product> products = dao.getProductsByPage(conn, page, pageSize);
+                List<Product> products = dao.getProductsByPage(page, pageSize);
                 String fileName = "products_page_" + page + ".csv";
 
                 try (FileWriter writer = new FileWriter(fileName)) {
@@ -39,7 +41,8 @@ public class ReportGenerator  {
             }
 
             System.out.println("🎉 All paginated reports generated successfully!");
-        } catch (Exception e) {
+        } catch (SQLException | IOException e) {
+            System.err.println("❌ Error generating paginated reports: " + e.getMessage());
             e.printStackTrace();
         }
     }

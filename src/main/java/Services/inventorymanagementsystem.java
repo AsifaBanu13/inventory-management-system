@@ -2,165 +2,121 @@ package Services;
 
 import Models.Product;
 import dao.ProductDAOImpl;
-import dao.ProductDAOImpl;
-import exception.ValidationException;
 import exception.ProductNotFoundException;
+import exception.ValidationException;
 
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 
 public class inventorymanagementsystem {
+
     private final ProductDAOImpl productDAO;
 
     public inventorymanagementsystem() {
-        try {
-            this.productDAO = new ProductDAOImpl();
-        } catch (SQLException e) {
-            throw new RuntimeException("DB connection failed: " + e.getMessage(), e);
-        }
+        this.productDAO = new ProductDAOImpl();
     }
 
-
-    // Add a product
     public void addProduct(Product product) {
         try {
             productDAO.addProduct(product);
             System.out.println("✅ Product added successfully: " + product.getName());
         } catch (SQLException e) {
             System.err.println("❌ Error adding product: " + e.getMessage());
-        } catch (RuntimeException e) {
-            System.err.println("⚠️ Operation failed: " + e.getMessage());
         }
     }
 
-    // View all products (Tabular format)
     public void viewProducts() {
         try {
             List<Product> products = productDAO.getAllProducts();
             if (products.isEmpty()) {
-                System.out.println("📭 No products available.");
+                System.out.println("⚠️ No products available!");
                 return;
             }
 
-            System.out.println("\n📦 Product List:");
-            System.out.printf("%-5s %-20s %-15s %-10s %-10s%n",
-                    "ID", "Name", "Category", "Quantity", "Price");
-            System.out.println("---------------------------------------------------------------");
-
+            System.out.printf("%-5s %-20s %-15s %-10s %-10s%n", "ID", "Name", "Category", "Quantity", "Price");
+            System.out.println("-----------------------------------------------------------");
             for (Product p : products) {
                 System.out.printf("%-5d %-20s %-15s %-10d %-10.2f%n",
                         p.getId(), p.getName(), p.getCategory(), p.getQuantity(), p.getPrice());
             }
         } catch (SQLException e) {
-            System.err.println("❌ Error fetching products: " + e.getMessage());
-        } catch (RuntimeException e) {
-            System.err.println("⚠️ Unexpected error while fetching products: " + e.getMessage());
+            System.err.println("❌ Could not fetch products: " + e.getMessage());
         }
     }
 
-    // Update product
-    public void updateProduct(int id, String newName, String newCategory, int quantity, double price) {
+    public void updateProduct(int id, String name, String category, int quantity, double price) {
         try {
-            Product p = new Product(id, newName, newCategory, quantity, price);
+            Product p = new Product(id, name, category, quantity, price);
             productDAO.updateProduct(p);
             System.out.println("✅ Product updated successfully!");
-        } catch (ValidationException e) {
-            System.err.println("⚠️ Invalid product data: " + e.getMessage());
-        } catch (ProductNotFoundException e) {
+        } catch (ProductNotFoundException | SQLException | ValidationException e) {
             System.err.println("❌ Update failed: " + e.getMessage());
-        } catch (SQLException e) {
-            System.err.println("❌ Update failed (DB): " + e.getMessage());
-        } catch (RuntimeException e) {
-            System.err.println("⚠️ Unexpected error during update: " + e.getMessage());
         }
     }
 
-    // Delete product
     public void deleteProduct(int id) {
         try {
             productDAO.deleteProduct(id);
             System.out.println("🗑️ Product deleted successfully!");
-        } catch (ProductNotFoundException e) {
+        } catch (ProductNotFoundException | SQLException e) {
             System.err.println("❌ Delete failed: " + e.getMessage());
-        } catch (SQLException e) {
-            System.err.println("❌ Delete failed (DB): " + e.getMessage());
-        } catch (RuntimeException e) {
-            System.err.println("⚠️ Unexpected error during delete: " + e.getMessage());
         }
     }
 
-    // Search product by name (Tabular format)
     public void searchProduct(String name) {
         try {
             List<Product> list = productDAO.searchProductsByName(name);
             if (list.isEmpty()) {
-                System.out.println("🔍 No products found matching: " + name);
+                System.out.println("⚠️ No products found matching: " + name);
                 return;
             }
 
-            System.out.println("\n🔍 Search Results:");
-            System.out.printf("%-5s %-20s %-15s %-10s %-10s%n",
-                    "ID", "Name", "Category", "Quantity", "Price");
-            System.out.println("---------------------------------------------------------------");
-
+            System.out.printf("%-5s %-20s %-15s %-10s %-10s%n", "ID", "Name", "Category", "Quantity", "Price");
+            System.out.println("-----------------------------------------------------------");
             for (Product p : list) {
                 System.out.printf("%-5d %-20s %-15s %-10d %-10.2f%n",
                         p.getId(), p.getName(), p.getCategory(), p.getQuantity(), p.getPrice());
             }
         } catch (SQLException e) {
             System.err.println("❌ Search failed: " + e.getMessage());
-        } catch (RuntimeException e) {
-            System.err.println("⚠️ Unexpected error during search: " + e.getMessage());
-        }
-    }
-
-    // Return list for report generation
-    public List<Product> getAllProductsForReport() {
-        try {
-            return productDAO.getAllProducts();
-        } catch (SQLException e) {
-            System.err.println("❌ Could not load products for report: " + e.getMessage());
-            return java.util.Collections.emptyList();
-        } catch (RuntimeException e) {
-            System.err.println("⚠️ Unexpected error while loading report data: " + e.getMessage());
-            return java.util.Collections.emptyList();
-        }
-    }
-
-    // Get by id
-    public void viewProductById(int id) {
-        try {
-            Product p = productDAO.getProductById(id);
-            System.out.println("📌 Product Details: " + p);
-        } catch (ProductNotFoundException e) {
-            System.err.println("❌ " + e.getMessage());
-        } catch (SQLException e) {
-            System.err.println("❌ Error fetching product: " + e.getMessage());
-        } catch (RuntimeException e) {
-            System.err.println("⚠️ Unexpected error: " + e.getMessage());
         }
     }
 
     public void filterProductsByPriceRange(double min, double max) {
         try {
-            List<Product> filtered = productDAO.filterProductsByPriceRange(min, max);
-            if (filtered.isEmpty()) {
-                System.out.println("⚠️ No products found in the price range ₹" + min + " - ₹" + max);
+            List<Product> list = productDAO.filterProductsByPriceRange(min, max);
+            if (list.isEmpty()) {
+                System.out.println("⚠️ No products found in price range " + min + " - " + max);
                 return;
             }
 
-            // Tabular output (exactly as you requested)
-            System.out.printf("%-5s %-15s %-15s %-10s %-10s%n", "ID", "Name", "Category", "Quantity", "Price");
+            System.out.printf("%-5s %-20s %-15s %-10s %-10s%n", "ID", "Name", "Category", "Quantity", "Price");
             System.out.println("-----------------------------------------------------------");
-            for (Product p : filtered) {
-                System.out.printf("%-5d %-15s %-15s %-10d %-10.2f%n",
+            for (Product p : list) {
+                System.out.printf("%-5d %-20s %-15s %-10d %-10.2f%n",
                         p.getId(), p.getName(), p.getCategory(), p.getQuantity(), p.getPrice());
             }
         } catch (SQLException e) {
-            System.err.println("❌ Error filtering products: " + e.getMessage());
+            System.err.println("❌ Filter failed: " + e.getMessage());
         }
     }
 
+    public void viewProductById(int id) {
+        try {
+            Product p = productDAO.getProductById(id);
+            System.out.println("📌 Product Details: " + p);
+        } catch (ProductNotFoundException | SQLException e) {
+            System.err.println("❌ Could not find product: " + e.getMessage());
+        }
     }
 
-
+    public List<Product> getAllProductsForReport() {
+        try {
+            return productDAO.getAllProducts();
+        } catch (SQLException e) {
+            System.err.println("❌ Could not fetch products for report: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+}

@@ -1,47 +1,71 @@
 package util;
 
-import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class DBConnection {
 
-    // change to your password
-    private static final String DB_URL = System.getenv("DB_URL");
-    private static final String DB_USER = System.getenv("DB_USER");
-    private static final String DB_PASS = System.getenv("DB_PASS");
-//jdbc:mysql://localhost:3306/inventoryDB
+    // ✅ Fetch from environment variables
+    private static final String DB_URL = System.getenv("DB_URL");      // e.g. jdbc:mysql://localhost:3306/inventorydb
+    private static final String DB_USER = System.getenv("DB_USER");    // e.g. root
+    private static final String DB_PASS = System.getenv("DB_PASS");    // e.g. your_password
 
     private static Connection connection;
-    private DBConnection() {}
+    private static boolean testMode = false;
 
-    //test mode for mocking
-    private static boolean testMode=false;
-    public static void enableTestMode() {
-        testMode=true;
+    private DBConnection() {
+        // prevent instantiation
     }
 
-    public static Connection getConnection()  {
-        if(DB_URL==null || DB_USER==null || DB_PASS==null){
-            throw new RuntimeException("Database environment variables not set!");
-        }
-        try {
-            return DriverManager.getConnection(DB_URL ,DB_USER, DB_PASS);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+    // ✅ Enable test mode for mock databases (optional for JUnit)
+    public static void enableTestMode() {
+        testMode = true;
+    }
 
-        //   if (connection == null) {
-        //     try {
-        // Ensure the MySQL JDBC driver is available (for older drivers)
-        // Class.forName("com.mysql.cj.jdbc.Driver");
-        //       connection = DriverManager.getConnection(URL, USER, PASSWORD);
-        // } catch (SQLException e) {
-        //    e.printStackTrace();
-        //   throw new RuntimeException("Unable to establish database connection", e);
-        // }
-        // }
-        //return connection;
+    // ✅ Get or create a database connection
+    public static Connection getConnection() {
+        try {
+            if (testMode) {
+                System.out.println("⚙️ DBConnection: Running in TEST MODE (mock connection).");
+                return null; // You can replace this with a mock DB for testing
+            }
+
+            // Validate environment variables
+            if (DB_URL == null || DB_USER == null || DB_PASS == null) {
+                throw new IllegalStateException("""
+                        ❌ Missing database environment variables!
+                        Please set the following system environment variables:
+                        DB_URL (e.g., jdbc:mysql://localhost:3306/inventorydb)
+                        DB_USER (e.g., root)
+                        DB_PASS (e.g., your_password)
+                        """);
+            }
+
+            // Reuse existing connection if still valid
+            if (connection != null && !connection.isClosed()) {
+                return connection;
+            }
+
+            // ✅ Establish a new connection
+            connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
+           // System.out.println("✅ Database connection established successfully.");
+            return connection;
+
+        } catch (SQLException e) {
+            throw new RuntimeException("❌ Failed to connect to the database: " + e.getMessage(), e);
+        }
+    }
+
+    // ✅ Close the connection when done
+    public static void closeConnection() {
+        try {
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+                System.out.println("🔒 Database connection closed.");
+            }
+        } catch (SQLException e) {
+            System.err.println("⚠️ Error closing database connection: " + e.getMessage());
+        }
     }
 }
