@@ -20,8 +20,8 @@ public class UserDAOImpl implements UserDAO {
 
             ps.executeUpdate();
         } catch (SQLIntegrityConstraintViolationException e) {
-            // Re-throw to handle duplicate username/email
-            throw e;
+            // Duplicate username/email
+            throw new SQLException("User with this username or email already exists.", e);
         }
     }
 
@@ -32,10 +32,10 @@ public class UserDAOImpl implements UserDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, username);
-            ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                return mapRowToUser(rs);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapRowToUser(rs);
+                }
             }
         }
         return null;
@@ -48,18 +48,10 @@ public class UserDAOImpl implements UserDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, email);
-            ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                return new User(
-                        rs.getInt("id"),
-                        rs.getString("username"),
-                        rs.getString("password"),
-                        rs.getString("role"),
-                        rs.getString("email"),
-                        rs.getString("otp"),
-                        rs.getBoolean("verified")
-                );
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapRowToUser(rs);
+                }
             }
         }
         return null;
@@ -73,7 +65,10 @@ public class UserDAOImpl implements UserDAO {
 
             ps.setString(1, otp);
             ps.setString(2, email);
-            ps.executeUpdate();
+            int updated = ps.executeUpdate();
+            if (updated == 0) {
+                throw new SQLException("No user found with email: " + email);
+            }
         }
     }
 
@@ -85,7 +80,10 @@ public class UserDAOImpl implements UserDAO {
 
             ps.setBoolean(1, verified);
             ps.setString(2, email);
-            ps.executeUpdate();
+            int updated = ps.executeUpdate();
+            if (updated == 0) {
+                throw new SQLException("No user found with email: " + email);
+            }
         }
     }
 

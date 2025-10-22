@@ -12,24 +12,24 @@ public class DBConnection {
     private static final String DB_PASS = System.getenv("DB_PASS");    // e.g. your_password
 
     private static Connection connection;
-    private static boolean testMode = false;
+  //  private static boolean testMode = false;
 
     private DBConnection() {
         // prevent instantiation
     }
 
     // ✅ Enable test mode for mock databases (optional for JUnit)
-    public static void enableTestMode() {
-        testMode = true;
-    }
+  //  public static void enableTestMode() {
+  //      testMode = true;
+  //  }
 
     // ✅ Get or create a database connection
     public static Connection getConnection() {
         try {
-            if (testMode) {
-                System.out.println("⚙️ DBConnection: Running in TEST MODE (mock connection).");
-                return null; // You can replace this with a mock DB for testing
-            }
+        //    if (testMode) {
+        //        System.out.println("⚙️ DBConnection: Running in TEST MODE (mock connection).");
+        //        return null; // You can replace this with a mock DB for testing
+        //    }
 
             // Validate environment variables
             if (DB_URL == null || DB_USER == null || DB_PASS == null) {

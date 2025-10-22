@@ -5,7 +5,9 @@ import Models.User;
 import dao.ProductDAOImpl;
 import exception.ValidationException;
 import util.CSVHelper;
+import util.DBConnection;
 
+import java.sql.Connection;
 import java.util.List;
 import java.util.Scanner;
 
@@ -226,13 +228,24 @@ public class App {
             System.out.println(RED + "⚠️ No products available!" + RESET);
             return;
         }
-        System.out.printf("%-5s %-15s %-15s %-10s %-10s%n", "ID", "Name", "Category", "Qty", "Price");
-        System.out.println("-----------------------------------------------------------");
+
+        System.out.println("╔══════════════════════════════════════════════════════════════════════════════╗");
+        System.out.printf("║ %-5s │ %-25s │ %-15s │ %-8s │ %-10s ║%n",
+                "ID", "Name", "Category", "Qty", "Price");
+        System.out.println("╠═════╪═════════════════════════════════╪═════════════════╪════════╪════════════╣");
+
         for (Product p : products) {
-            System.out.printf("%-5d %-15s %-15s %-10d %-10.2f%n",
-                    p.getId(), p.getName(), p.getCategory(), p.getQuantity(), p.getPrice());
+            System.out.printf("║ %-5d │ %-25s │ %-15s │ %-8d │ %-10.2f ║%n",
+                    p.getId(),
+                    p.getName(),
+                    p.getCategory(),
+                    p.getQuantity(),
+                    p.getPrice());
         }
+
+        System.out.println("╚═════╧═════════════════════════════════╧═════════════════╧════════╧════════════╝");
     }
+
 
     private static void searchProductById() {
         try {
