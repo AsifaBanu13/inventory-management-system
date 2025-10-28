@@ -1,23 +1,22 @@
 package Services;
 
+import Models.Product;
 import jakarta.mail.*;
-import jakarta.mail.internet.MimeBodyPart;
-import jakarta.mail.internet.MimeMessage;
-import jakarta.mail.internet.InternetAddress;
-import jakarta.mail.internet.MimeMultipart;
-
+import jakarta.mail.internet.*;
 import java.io.File;
+import java.util.List;
 import java.util.Properties;
 
 /**
- * EmailService can send a plain email (no attachment) or an email with one attachment.
- * sendReport(): attachmentPath may be null (used by OTP) or a valid path (CSV).
+ * EmailService can send plain or multipart emails.
+ * Supports OTPs, reports (with optional attachments), and automatic stock alerts.
  */
 public class EmailService {
 
     private static final String SMTP_HOST = "smtp.gmail.com";
     private static final String SMTP_PORT = "587";
 
+    // ✅ Create mail session with authentication
     private static Session createSession() throws MessagingException {
         final String fromEmail = System.getenv("MAIL_USER");
         final String password = System.getenv("MAIL_PASS");
@@ -40,7 +39,7 @@ public class EmailService {
     }
 
     /**
-     * Sends an email. If attachmentPath is null, sends a simple text email.
+     * ✅ Sends an email (optionally with attachment)
      */
     public static void sendReport(String toEmail, String subject, String body, String attachmentPath) throws MessagingException {
         Session session = createSession();
@@ -52,10 +51,10 @@ public class EmailService {
         message.setSubject(subject);
 
         if (attachmentPath == null || attachmentPath.isBlank()) {
-            // plain text email
+            // Plain text email
             message.setText(body);
         } else {
-            // multipart with attachment
+            // Multipart email with attachment
             MimeBodyPart textPart = new MimeBodyPart();
             textPart.setText(body);
 
@@ -77,15 +76,56 @@ public class EmailService {
         }
 
         Transport.send(message);
+        // (silent — no console message)
     }
 
     /**
-     * Convenience wrapper for sending OTP (no attachment).
+     * ✅ Sends OTP (simple wrapper, no attachment)
      */
     public static void sendOTP(String toEmail, String otp) throws MessagingException {
         String subject = "Your Inventory System OTP";
         String body = "Dear User,\n\nYour OTP for email verification is: " + otp +
                 "\n\nIf you did not request this, ignore this email.\n\nRegards,\nInventory Team";
         sendReport(toEmail, subject, body, null);
+    }
+
+    /**
+     * ✅ Sends a single product stock alert (used only if you want per-product alerts)
+     */
+    public static void sendAlert(String toEmail, String productName, int currentQty, int recommendedReorderQty) throws MessagingException {
+        String subject = "⚠️ Low Stock Alert: " + productName;
+        String body = "Dear Admin,\n\n"
+                + "Product: " + productName + "\n"
+                + "Current Quantity: " + currentQty + "\n"
+                + "Recommended Reorder Quantity: " + recommendedReorderQty + "\n\n"
+                + "Please restock this item soon to avoid shortage.\n\n"
+                + "Regards,\nInventory Management System";
+
+        sendReport(toEmail, subject, body, null);
+    }
+
+    /**
+     * ✅ Sends one consolidated low-stock alert for multiple products.
+     */
+    public static void sendLowStockAlert(List<Product> lowStockProducts, String toEmail) throws MessagingException {
+        if (lowStockProducts == null || lowStockProducts.isEmpty()) {
+            return; // nothing to send
+        }
+
+        String subject = "⚠️ Low Stock Alert - Inventory System";
+
+        StringBuilder body = new StringBuilder();
+        body.append("Dear Admin,\n\nThe following products are running low on stock:\n\n");
+
+        for (Product p : lowStockProducts) {
+            body.append("• Product: ").append(p.getName())
+                    .append(" | Quantity: ").append(p.getQuantity())
+                    .append(" | Threshold: ").append(p.getThreshold())
+                    .append("\n");
+        }
+
+        body.append("\nPlease restock these items soon to avoid shortage.\n\nRegards,\nInventory Management System");
+
+        sendReport(toEmail, subject, body.toString(), null);
     }
 }

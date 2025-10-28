@@ -5,19 +5,25 @@ import Models.User;
 import dao.ProductDAOImpl;
 import exception.ValidationException;
 import util.CSVHelper;
-import util.DBConnection;
-
-import java.sql.Connection;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
+/**
+ * Main application entry point for Inventory Management System
+ */
 public class App {
 
     private static final Scanner scanner = new Scanner(System.in);
     private static final UserService userService = new UserService();
     private static final inventorymanagementsystem inventoryManager = new inventorymanagementsystem();
 
-    // ANSI colors
+    // ✅ Stock alert service
+    private static final StockAlertService alertService = new StockAlertService();
+
+    // ANSI colors for terminal styling
     private static final String RESET = "\u001B[0m";
     private static final String CYAN = "\u001B[36m";
     private static final String GREEN = "\u001B[32m";
@@ -26,6 +32,9 @@ public class App {
     private static final String MAGENTA = "\u001B[35m";
 
     public static void main(String[] args) {
+        // ✅ Start daily stock check scheduler (runs automatically every 24 hours)
+        startDailyStockCheckScheduler();
+
         while (true) {
             printMainMenu();
             System.out.print(CYAN + "👉 Enter your choice: " + RESET);
@@ -70,6 +79,9 @@ public class App {
             if (user != null) {
                 System.out.println(GREEN + "✅ Login successful! Welcome, " + user.getUsername() + " (" + user.getRole() + ")" + RESET);
 
+                // ✅ Start role-specific alert scheduler
+                startStockAlertScheduler(user);
+
                 if (user.getRole().equalsIgnoreCase("ADMIN")) {
                     adminMenu();
                 } else {
@@ -81,6 +93,34 @@ public class App {
         } catch (Exception e) {
             System.out.println(RED + "❌ Login failed: " + e.getMessage() + RESET);
         }
+    }
+
+    // ✅ Background scheduler setup (role-based)
+    private static void startStockAlertScheduler(User loggedInUser) {
+        try {
+            StockAlertService alertService = new StockAlertService();
+            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+            if (loggedInUser.getRole().equalsIgnoreCase("ADMIN")) {
+                scheduler.scheduleAtFixedRate(alertService::checkStockAlerts, 0, 10, TimeUnit.MINUTES);
+            } else {
+                scheduler.scheduleAtFixedRate(alertService::checkStockAlerts, 0, 5, TimeUnit.MINUTES);
+            }
+
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to start stock alert scheduler: " + e.getMessage());
+        }
+    }
+
+    // ✅ Daily Stock Check Scheduler (runs automatically even before login)
+    private static void startDailyStockCheckScheduler() {
+        ScheduledExecutorService dailyScheduler = Executors.newSingleThreadScheduledExecutor();
+        dailyScheduler.scheduleAtFixedRate(() -> {
+            try {
+                alertService.checkStockAlerts();
+            } catch (Exception ignored) {
+            }
+        }, 0, 24, TimeUnit.HOURS); // change to 10 for testing: TimeUnit.MINUTES
     }
 
     // ========================= REGISTER =========================
@@ -125,7 +165,6 @@ public class App {
                 return;
             }
 
-            // Send OTP
             OTPService.sendOTP(email);
             System.out.println(YELLOW + "📨 OTP sent to: " + email + RESET);
 
@@ -156,6 +195,7 @@ public class App {
             System.out.println(YELLOW + "6️⃣ Filter by Price Range" + RESET);
             System.out.println(YELLOW + "7️⃣ Export Report (CSV)" + RESET);
             System.out.println(YELLOW + "8️⃣ Logout" + RESET);
+            System.out.println(YELLOW + "9️⃣ Check Low Stock Now 🔔" + RESET); // ✅ new manual trigger
             System.out.print(CYAN + "👉 Enter your choice: " + RESET);
             String choice = scanner.nextLine().trim();
 
@@ -171,8 +211,41 @@ public class App {
                     System.out.println(GREEN + "👋 Logging out..." + RESET);
                     return;
                 }
+                case "9" -> manualLowStockCheck(); // ✅ new feature
                 default -> System.out.println(RED + "⚠️ Invalid choice! Try again." + RESET);
             }
+        }
+    }
+
+    // ✅ Manual low-stock check
+    private static void manualLowStockCheck() {
+        try {
+            System.out.println(YELLOW + "\n🔎 Checking for low-stock products..." + RESET);
+            List<Product> allProducts = new ProductDAOImpl().getAllProducts();
+
+            List<Product> lowStock = allProducts.stream()
+                    .filter(p -> p.getQuantity() < p.getThreshold())
+                    .toList();
+
+            if (lowStock.isEmpty()) {
+                System.out.println(GREEN + "✅ All products are sufficiently stocked." + RESET);
+                return;
+            }
+
+            System.out.println(RED + "⚠️ The following products are low on stock:" + RESET);
+            for (Product p : lowStock) {
+                System.out.printf("   • %s (Qty: %d / Threshold: %d)%n", p.getName(), p.getQuantity(), p.getThreshold());
+            }
+
+            System.out.print(YELLOW + "\n📧 Send email alert to admin? (Y/N): " + RESET);
+            String sendEmail = scanner.nextLine().trim();
+            if (sendEmail.equalsIgnoreCase("Y")) {
+                EmailService.sendLowStockAlert(lowStock, System.getenv("ADMIN_EMAIL"));
+                System.out.println(GREEN + "✅ Low stock alert email sent to admin." + RESET);
+            }
+
+        } catch (Exception e) {
+            System.out.println(RED + "⚠️ Failed to perform low-stock check: " + e.getMessage() + RESET);
         }
     }
 
@@ -216,7 +289,6 @@ public class App {
 
             Product product = new Product(id, name, category, quantity, price);
             inventoryManager.addProduct(product);
-          //  System.out.println(GREEN + "✅ Product added successfully!" + RESET);
         } catch (Exception e) {
             System.out.println(RED + "⚠️ Error adding product: " + e.getMessage() + RESET);
         }
@@ -236,16 +308,11 @@ public class App {
 
         for (Product p : products) {
             System.out.printf("║ %-5d │ %-25s │ %-15s │ %-8d │ %-10.2f ║%n",
-                    p.getId(),
-                    p.getName(),
-                    p.getCategory(),
-                    p.getQuantity(),
-                    p.getPrice());
+                    p.getId(), p.getName(), p.getCategory(), p.getQuantity(), p.getPrice());
         }
 
         System.out.println("╚═════╧═════════════════════════════════╧═════════════════╧════════╧════════════╝");
     }
-
 
     private static void searchProductById() {
         try {
@@ -271,7 +338,6 @@ public class App {
             double price = Double.parseDouble(scanner.nextLine().trim());
 
             inventoryManager.updateProduct(id, name, category, quantity, price);
-           // System.out.println(GREEN + "✅ Product updated successfully!" + RESET);
         } catch (Exception e) {
             System.out.println(RED + "⚠️ Error updating product: " + e.getMessage() + RESET);
         }
@@ -282,7 +348,6 @@ public class App {
             System.out.print("🗑️ Enter Product ID to Delete: ");
             int id = Integer.parseInt(scanner.nextLine().trim());
             inventoryManager.deleteProduct(id);
-         //   System.out.println(GREEN + "✅ Product deleted successfully!" + RESET);
         } catch (Exception e) {
             System.out.println(RED + "⚠️ Error deleting product: " + e.getMessage() + RESET);
         }
