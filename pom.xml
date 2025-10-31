@@ -24,13 +24,12 @@
             <version>8.0.33</version>
         </dependency>
 
-        <!-- ✅ Jakarta Mail (updated version of javax.mail) -->
+        <!-- ✅ Jakarta Mail (for email alerts) -->
         <dependency>
             <groupId>com.sun.mail</groupId>
             <artifactId>jakarta.mail</artifactId>
             <version>2.0.1</version>
         </dependency>
-
 
         <!-- ✅ JUnit 5 for testing -->
         <dependency>
@@ -51,7 +50,7 @@
 
     <build>
         <plugins>
-            <!-- ✅ Use Maven Compiler Plugin for Java 17 -->
+            <!-- ✅ Compiler Plugin (Java 17) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -62,7 +61,7 @@
                 </configuration>
             </plugin>
 
-            <!-- ✅ Enable JUnit 5 test engine -->
+            <!-- ✅ Surefire Plugin for JUnit 5 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -72,6 +71,33 @@
                         <include>**/*Test.java</include>
                     </includes>
                 </configuration>
+            </plugin>
+
+            <!-- ✅ Assembly Plugin for Runnable JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <!-- ✅ Your main class -->
+                            <mainClass>Services.App</mainClass>
+                        </manifest>
+                    </archive>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

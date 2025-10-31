@@ -1,0 +1,5 @@
+dao\ProductDAOImplMockitoTest.class
+dao\UserDAOImplTest.class
+dao\ProductDAOImplTest.class
+Services\ProductsValidationTest.class
+Services\AppTest.class

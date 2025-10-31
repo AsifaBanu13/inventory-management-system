@@ -1,54 +1,138 @@
 package dao;
+
 import Models.Product;
-import dao.ProductDAOImpl;
+import exception.ProductNotFoundException;
 import exception.ValidationException;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.mockito.MockedStatic;
+import util.DBConnection;
 
-import java.sql.SQLException;
+import java.sql.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-public class ProductDAOImplMockitoTest {
-    private static ProductDAO productDAO;
+class ProductDAOImplMockitoTest {
 
-    @BeforeAll
-    static void setup() {
-        // ✅ Create a mock object of ProductDAO
-        productDAO = Mockito.mock(ProductDAO.class);
+    private ProductDAOImpl productDAO;
+
+    @BeforeEach
+    void setUp() {
+        productDAO = new ProductDAOImpl();
     }
 
     @Test
     void testAddProductSuccess() throws SQLException, ValidationException {
-        // ✅ Create a sample product
-        Product p = new Product(101, "Laptop", "Electronics", 10, 50000);
+        Product product = new Product(1, "Laptop", "Electronics", 10, 500.0);
 
-        // ✅ Stub: do nothing when addProduct() is called
-        doNothing().when(productDAO).addProduct(p);
+        try (MockedStatic<DBConnection> mockedDBConnection = mockStatic(DBConnection.class)) {
+            Connection mockConnection = mock(Connection.class);
+            PreparedStatement checkStmt = mock(PreparedStatement.class);
+            PreparedStatement insertStmt = mock(PreparedStatement.class);
+            ResultSet checkRS = mock(ResultSet.class);
 
-        // ✅ Call the method
-        productDAO.addProduct(p);
+            // Mock DBConnection
+            mockedDBConnection.when(DBConnection::getConnection).thenReturn(mockConnection);
 
-        // ✅ Verify that addProduct() was called exactly once
-        verify(productDAO, times(1)).addProduct(p);
+            // Mock SELECT COUNT(*)
+            when(mockConnection.prepareStatement("SELECT COUNT(*) FROM products WHERE id = ?"))
+                    .thenReturn(checkStmt);
+            when(checkStmt.executeQuery()).thenReturn(checkRS);
+            when(checkRS.next()).thenReturn(true);
+            when(checkRS.getInt(1)).thenReturn(0);
+
+            // Mock INSERT
+            when(mockConnection.prepareStatement(
+                    "INSERT INTO products (id, name, category, quantity, price) VALUES (?, ?, ?, ?, ?)")
+            ).thenReturn(insertStmt);
+
+            // Run test
+            assertDoesNotThrow(() -> productDAO.addProduct(product));
+
+            // Verify insert called
+            verify(insertStmt).executeUpdate();
+        }
     }
 
     @Test
-    void testUpdateProduct() throws SQLException, ValidationException {
-        // ✅ Create a product
-        Product p = new Product(101, "Laptop", "Electronics", 10, 50000);
+    void testAddProductDuplicate() throws SQLException, ValidationException {
+        Product product = new Product(1, "Laptop", "Electronics", 10, 500.0);
 
-        // ✅ Stub: return 1 when updateProduct() is called
-        when(productDAO.updateProduct(p)).thenReturn(1);
+        try (MockedStatic<DBConnection> mockedDBConnection = mockStatic(DBConnection.class)) {
+            Connection mockConnection = mock(Connection.class);
+            PreparedStatement checkStmt = mock(PreparedStatement.class);
+            ResultSet checkRS = mock(ResultSet.class);
 
-        // ✅ Call the method
-        int rows = productDAO.updateProduct(p);
+            mockedDBConnection.when(DBConnection::getConnection).thenReturn(mockConnection);
 
-        // ✅ Verify return value and method call
-        assertEquals(1, rows);
-        verify(productDAO, times(1)).updateProduct(p);
+            when(mockConnection.prepareStatement("SELECT COUNT(*) FROM products WHERE id = ?"))
+                    .thenReturn(checkStmt);
+            when(checkStmt.executeQuery()).thenReturn(checkRS);
+            when(checkRS.next()).thenReturn(true);
+            when(checkRS.getInt(1)).thenReturn(1); // Duplicate exists
+
+            SQLException exception = assertThrows(SQLException.class,
+                    () -> productDAO.addProduct(product));
+
+            assertTrue(exception.getMessage().contains("already exists"));
+        }
+    }
+
+    @Test
+    void testGetProductByIdSuccess() throws SQLException, ValidationException {
+        Product product = new Product(1, "Laptop", "Electronics", 10, 500.0);
+
+        try (MockedStatic<DBConnection> mockedDBConnection = mockStatic(DBConnection.class)) {
+            Connection mockConnection = mock(Connection.class);
+            PreparedStatement ps = mock(PreparedStatement.class);
+            ResultSet rs = mock(ResultSet.class);
+
+            mockedDBConnection.when(DBConnection::getConnection).thenReturn(mockConnection);
+
+            when(mockConnection.prepareStatement("SELECT * FROM products WHERE id = ?")).thenReturn(ps);
+            when(ps.executeQuery()).thenReturn(rs);
+            when(rs.next()).thenReturn(true);
+            when(rs.getInt("id")).thenReturn(product.getId());
+            when(rs.getString("name")).thenReturn(product.getName());
+            when(rs.getString("category")).thenReturn(product.getCategory());
+            when(rs.getInt("quantity")).thenReturn(product.getQuantity());
+            when(rs.getDouble("price")).thenReturn(product.getPrice());
+
+            Product result = productDAO.getProductById(1);
+            assertEquals(product.getName(), result.getName());
+        }
+    }
+
+    @Test
+    void testGetProductByIdNotFound() throws SQLException {
+        try (MockedStatic<DBConnection> mockedDBConnection = mockStatic(DBConnection.class)) {
+            Connection mockConnection = mock(Connection.class);
+            PreparedStatement ps = mock(PreparedStatement.class);
+            ResultSet rs = mock(ResultSet.class);
+
+            mockedDBConnection.when(DBConnection::getConnection).thenReturn(mockConnection);
+
+            when(mockConnection.prepareStatement("SELECT * FROM products WHERE id = ?")).thenReturn(ps);
+            when(ps.executeQuery()).thenReturn(rs);
+            when(rs.next()).thenReturn(false); // Not found
+
+            assertThrows(ProductNotFoundException.class, () -> productDAO.getProductById(999));
+        }
+    }
+
+    @Test
+    void testDeleteProductNotFound() throws SQLException {
+        try (MockedStatic<DBConnection> mockedDBConnection = mockStatic(DBConnection.class)) {
+            Connection mockConnection = mock(Connection.class);
+            PreparedStatement ps = mock(PreparedStatement.class);
+
+            mockedDBConnection.when(DBConnection::getConnection).thenReturn(mockConnection);
+
+            when(mockConnection.prepareStatement("DELETE FROM products WHERE id = ?")).thenReturn(ps);
+            when(ps.executeUpdate()).thenReturn(0); // No rows deleted
+
+            assertThrows(ProductNotFoundException.class, () -> productDAO.deleteProduct(999));
+        }
     }
 }
-
